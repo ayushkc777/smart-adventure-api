@@ -6,6 +6,7 @@ logs/
 *.log
 coverage/
 dist/
+test-uploads/
 .DS_Store
 npm-debug.log*
 src/uploads/*
