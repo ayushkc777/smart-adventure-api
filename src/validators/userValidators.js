@@ -1,0 +1,27 @@
+import { body, query } from 'express-validator';
+
+export const listUsersValidator = [
+  query('search').optional({ checkFalsy: true }).trim().isLength({ max: 100 }),
+  query('role').optional({ checkFalsy: true }).isIn(['user', 'admin']).withMessage('Role is invalid.'),
+  query('status')
+    .optional({ checkFalsy: true })
+    .isIn(['active', 'suspended'])
+    .withMessage('Status is invalid.'),
+];
+
+export const updateUserValidator = [
+  body('fullName').optional().trim().isLength({ min: 2, max: 80 }).withMessage('Full name is invalid.'),
+  body('phone').optional({ checkFalsy: true }).trim().isLength({ max: 30 }),
+  body('nationality').optional({ checkFalsy: true }).trim().isLength({ max: 80 }),
+  body('preferredLanguage').optional({ checkFalsy: true }).trim().isLength({ max: 40 }),
+  body('role').optional().isIn(['user', 'admin']).withMessage('Role is invalid.'),
+  body('status').optional().isIn(['active', 'suspended']).withMessage('Status is invalid.'),
+  body('emergencyContact.name').optional({ checkFalsy: true }).trim().isLength({ max: 80 }),
+  body('emergencyContact.phone').optional({ checkFalsy: true }).trim().isLength({ max: 30 }),
+  body('emergencyContact.relationship').optional({ checkFalsy: true }).trim().isLength({ max: 60 }),
+];
+
+export const changePasswordValidator = [
+  body('currentPassword').isLength({ min: 8 }).withMessage('Current password is required.'),
+  body('newPassword').isLength({ min: 8 }).withMessage('New password must be at least 8 characters.'),
+];
