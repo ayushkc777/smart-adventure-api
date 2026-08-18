@@ -10,25 +10,36 @@ export const listUsersValidator = [
     .withMessage('Status is invalid.'),
 ];
 
-export const updateUserValidator = [
-  requireAtLeastOneField([
-    'fullName',
-    'phone',
-    'nationality',
-    'preferredLanguage',
-    'role',
-    'status',
-    'emergencyContact',
-  ]),
+const profileFields = [
+  'fullName',
+  'phone',
+  'nationality',
+  'preferredLanguage',
+  'emergencyContact',
+];
+
+const profileRules = () => [
   body('fullName').optional().trim().isLength({ min: 2, max: 80 }).withMessage('Full name is invalid.'),
   body('phone').optional({ checkFalsy: true }).trim().isLength({ max: 30 }),
   body('nationality').optional({ checkFalsy: true }).trim().isLength({ max: 80 }),
   body('preferredLanguage').optional({ checkFalsy: true }).trim().isLength({ max: 40 }),
-  body('role').optional().isIn(['user', 'admin']).withMessage('Role is invalid.'),
-  body('status').optional().isIn(['active', 'suspended']).withMessage('Status is invalid.'),
   body('emergencyContact.name').optional({ checkFalsy: true }).trim().isLength({ max: 80 }),
   body('emergencyContact.phone').optional({ checkFalsy: true }).trim().isLength({ max: 30 }),
   body('emergencyContact.relationship').optional({ checkFalsy: true }).trim().isLength({ max: 60 }),
+];
+
+export const profileUpdateValidator = [
+  requireAtLeastOneField(profileFields),
+  ...profileRules(),
+  body('role').not().exists().withMessage('Role cannot be changed through the profile endpoint.'),
+  body('status').not().exists().withMessage('Status cannot be changed through the profile endpoint.'),
+];
+
+export const adminUserUpdateValidator = [
+  requireAtLeastOneField([...profileFields, 'role', 'status']),
+  ...profileRules(),
+  body('role').optional().isIn(['user', 'admin']).withMessage('Role is invalid.'),
+  body('status').optional().isIn(['active', 'suspended']).withMessage('Status is invalid.'),
 ];
 
 export const changePasswordValidator = [

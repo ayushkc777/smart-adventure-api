@@ -8,7 +8,7 @@ import { User } from '../../src/models/User.js';
 import { authHeader, createUser, loginUser, password } from '../helpers/factories.js';
 
 describe('profile and password api', () => {
-  it('updates allowed profile fields and ignores privileged fields', async () => {
+  it('updates allowed profile fields', async () => {
     const user = await createUser({ email: 'profile-update@example.com' });
     const token = await loginUser(user);
 
@@ -20,8 +20,6 @@ describe('profile and password api', () => {
         nationality: 'Nepali',
         phone: '9812345678',
         preferredLanguage: 'Nepali',
-        role: 'admin',
-        status: 'suspended',
       })
       .expect(200);
 
@@ -34,6 +32,23 @@ describe('profile and password api', () => {
       status: 'active',
     });
     expect(response.body.user.password).toBeUndefined();
+  });
+
+  it('rejects privileged fields on the self-profile endpoint', async () => {
+    const user = await createUser({ email: 'profile-privileged-fields@example.com' });
+    const token = await loginUser(user);
+
+    const response = await request(app)
+      .patch('/api/users/me')
+      .set(authHeader(token))
+      .send({ fullName: 'Updated Traveler', role: 'admin', status: 'suspended' })
+      .expect(422);
+
+    expect(response.body.errors).toEqual(expect.arrayContaining([
+      { field: 'role', message: 'Role cannot be changed through the profile endpoint.' },
+      { field: 'status', message: 'Status cannot be changed through the profile endpoint.' },
+    ]));
+    expect(await User.findById(user._id)).toMatchObject({ role: 'user', status: 'active' });
   });
 
   it('rejects an incorrect current password', async () => {
