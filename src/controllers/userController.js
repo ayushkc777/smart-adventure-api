@@ -7,6 +7,7 @@ import { ApiError } from '../utils/apiError.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { getPublicFilePath } from '../middleware/upload.js';
 import { getPagination, sendPaginated } from '../utils/pagination.js';
+import { escapeRegex } from '../utils/search.js';
 
 const buildUserFilter = (query) => {
   const filter = {};
@@ -20,9 +21,10 @@ const buildUserFilter = (query) => {
   }
 
   if (query.search) {
+    const search = escapeRegex(query.search);
     filter.$or = [
-      { fullName: { $regex: query.search, $options: 'i' } },
-      { email: { $regex: query.search, $options: 'i' } },
+      { fullName: { $regex: search, $options: 'i' } },
+      { email: { $regex: search, $options: 'i' } },
     ];
   }
 

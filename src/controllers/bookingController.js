@@ -4,6 +4,7 @@ import { ApiError } from '../utils/apiError.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { calculateBookingTotal, createBooking } from '../services/bookingService.js';
 import { getPagination, sendPaginated } from '../utils/pagination.js';
+import { escapeRegex } from '../utils/search.js';
 
 const bookingPopulate = [
   { path: 'user', select: 'fullName email phone' },
@@ -37,7 +38,7 @@ const buildBookingFilter = (query, user) => {
   }
 
   if (query.search) {
-    filter.bookingReference = { $regex: query.search, $options: 'i' };
+    filter.bookingReference = { $regex: escapeRegex(query.search), $options: 'i' };
   }
 
   return filter;

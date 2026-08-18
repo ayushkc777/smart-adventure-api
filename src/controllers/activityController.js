@@ -8,6 +8,7 @@ import { asyncHandler } from '../utils/asyncHandler.js';
 import { getPublicFilePath } from '../middleware/upload.js';
 import { recalculateActivityMetrics, validateActivityOperators } from '../services/activityService.js';
 import { getPagination, sendPaginated } from '../utils/pagination.js';
+import { escapeRegex } from '../utils/search.js';
 
 const buildActivityFilter = (query, user) => {
   const filter = {};
@@ -29,11 +30,12 @@ const buildActivityFilter = (query, user) => {
   }
 
   if (query.search) {
+    const search = escapeRegex(query.search);
     filter.$or = [
-      { title: { $regex: query.search, $options: 'i' } },
-      { description: { $regex: query.search, $options: 'i' } },
-      { district: { $regex: query.search, $options: 'i' } },
-      { province: { $regex: query.search, $options: 'i' } },
+      { title: { $regex: search, $options: 'i' } },
+      { description: { $regex: search, $options: 'i' } },
+      { district: { $regex: search, $options: 'i' } },
+      { province: { $regex: search, $options: 'i' } },
     ];
   }
 

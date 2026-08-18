@@ -7,6 +7,7 @@ import { asyncHandler } from '../utils/asyncHandler.js';
 import { getPublicFilePath } from '../middleware/upload.js';
 import { recalculateActivityMetrics } from '../services/activityService.js';
 import { getPagination, sendPaginated } from '../utils/pagination.js';
+import { escapeRegex } from '../utils/search.js';
 
 const buildOperatorFilter = (query, user) => {
   const filter = {};
@@ -18,10 +19,11 @@ const buildOperatorFilter = (query, user) => {
   }
 
   if (query.search) {
+    const search = escapeRegex(query.search);
     filter.$or = [
-      { companyName: { $regex: query.search, $options: 'i' } },
-      { licenseNumber: { $regex: query.search, $options: 'i' } },
-      { location: { $regex: query.search, $options: 'i' } },
+      { companyName: { $regex: search, $options: 'i' } },
+      { licenseNumber: { $regex: search, $options: 'i' } },
+      { location: { $regex: search, $options: 'i' } },
     ];
   }
 
