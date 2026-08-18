@@ -1,6 +1,25 @@
 import mongoose from 'mongoose';
 import { Activity } from '../models/Activity.js';
+import { Operator } from '../models/Operator.js';
 import { Review } from '../models/Review.js';
+import { ApiError } from '../utils/apiError.js';
+
+export const validateActivityOperators = async (operatorPrices) => {
+  if (operatorPrices === undefined) return;
+
+  const operatorIds = operatorPrices.map((price) => String(price.operator));
+  if (new Set(operatorIds).size !== operatorIds.length) {
+    throw new ApiError(400, 'Operator prices must not contain duplicate operators.');
+  }
+
+  const operators = await Operator.find({ _id: { $in: operatorIds } }).select('_id status');
+  if (operators.length !== operatorIds.length) {
+    throw new ApiError(400, 'Every activity operator must exist.');
+  }
+  if (operators.some((operator) => operator.status !== 'active')) {
+    throw new ApiError(400, 'Activity prices may only reference active operators.');
+  }
+};
 
 export const recalculateActivityMetrics = async (activityId) => {
   const normalizedActivityId =

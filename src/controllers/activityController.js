@@ -6,7 +6,7 @@ import { Wishlist } from '../models/Wishlist.js';
 import { ApiError } from '../utils/apiError.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { getPublicFilePath } from '../middleware/upload.js';
-import { recalculateActivityMetrics } from '../services/activityService.js';
+import { recalculateActivityMetrics, validateActivityOperators } from '../services/activityService.js';
 import { getPagination, sendPaginated } from '../utils/pagination.js';
 
 const buildActivityFilter = (query, user) => {
@@ -71,6 +71,7 @@ export const getActivity = asyncHandler(async (req, res) => {
 });
 
 export const createActivity = asyncHandler(async (req, res) => {
+  await validateActivityOperators(req.body.operatorPrices);
   const activity = await Activity.create(req.body);
   await recalculateActivityMetrics(activity._id);
 
@@ -89,6 +90,8 @@ export const updateActivity = asyncHandler(async (req, res) => {
   if (!activity) {
     throw new ApiError(404, 'Activity not found.');
   }
+
+  await validateActivityOperators(req.body.operatorPrices);
 
   Object.entries(req.body).forEach(([field, value]) => {
     if (value !== undefined && field !== 'priceFrom' && field !== 'ratingAverage' && field !== 'reviewCount') {

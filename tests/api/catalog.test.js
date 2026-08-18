@@ -148,6 +148,44 @@ describe('activities and operators api', () => {
     ]));
   });
 
+  it('requires activity pricing to reference existing active operators', async () => {
+    const admin = await createUser({ email: 'admin-operator-reference@example.com', role: 'admin' });
+    const adminToken = await loginUser(admin);
+    const inactiveOperator = await createOperator({
+      companyName: 'Inactive Price Operator',
+      licenseNumber: 'INACTIVE-PRICE-1',
+      status: 'inactive',
+    });
+    const missingOperatorId = '507f1f77bcf86cd799439099';
+    const basePayload = {
+      description: 'A detailed activity description used to validate operator references.',
+      difficulty: 'Easy',
+      district: 'Kaski',
+      duration: 'One hour',
+      province: 'Gandaki',
+      riskLevel: 'Low',
+      title: 'Operator Reference Validation',
+    };
+
+    const missing = await request(app)
+      .post('/api/activities')
+      .set(authHeader(adminToken))
+      .send({ ...basePayload, operatorPrices: [{ operator: missingOperatorId, price: 8000 }] })
+      .expect(400);
+    const inactive = await request(app)
+      .post('/api/activities')
+      .set(authHeader(adminToken))
+      .send({
+        ...basePayload,
+        operatorPrices: [{ operator: inactiveOperator._id.toString(), price: 8000 }],
+      })
+      .expect(400);
+
+    expect(missing.body.message).toBe('Every activity operator must exist.');
+    expect(inactive.body.message).toBe('Activity prices may only reference active operators.');
+    expect(await Activity.countDocuments({ title: basePayload.title })).toBe(0);
+  });
+
   it('archives activities with related records instead of leaving orphaned bookings', async () => {
     const admin = await createUser({ email: 'admin-delete-activity@example.com', role: 'admin' });
     const adminToken = await loginUser(admin);
