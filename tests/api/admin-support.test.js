@@ -24,6 +24,54 @@ describe('admin, support, newsletter, and uploads api', () => {
     await request(app).delete(`/api/users/${admin._id}`).set(authHeader(token)).expect(400);
   });
 
+  it('keeps one active admin while allowing safe multi-admin changes', async () => {
+    const primaryAdmin = await createUser({ email: 'primary-admin@example.com', role: 'admin' });
+    const secondaryAdmin = await createUser({ email: 'secondary-admin@example.com', role: 'admin' });
+    const primaryToken = await loginUser(primaryAdmin);
+
+    const demoted = await request(app)
+      .patch(`/api/users/${secondaryAdmin._id}`)
+      .set(authHeader(primaryToken))
+      .send({ role: 'user' })
+      .expect(200);
+    expect(demoted.body.user.role).toBe('user');
+
+    const suspendSelf = await request(app)
+      .patch(`/api/users/${primaryAdmin._id}`)
+      .set(authHeader(primaryToken))
+      .send({ status: 'suspended' })
+      .expect(400);
+    const demoteSelf = await request(app)
+      .patch(`/api/users/${primaryAdmin._id}`)
+      .set(authHeader(primaryToken))
+      .send({ role: 'user' })
+      .expect(400);
+
+    expect(suspendSelf.body.message).toMatch(/cannot suspend your own/i);
+    expect(demoteSelf.body.message).toMatch(/cannot change your own admin role/i);
+  });
+
+  it('prevents deletion of the final active admin record', async () => {
+    const activeAdmin = await createUser({ email: 'last-active-admin@example.com', role: 'admin' });
+    const inactiveAdmin = await createUser({
+      email: 'inactive-admin@example.com',
+      role: 'admin',
+      status: 'suspended',
+    });
+    const token = await loginUser(activeAdmin);
+
+    await request(app)
+      .delete(`/api/users/${activeAdmin._id}`)
+      .set(authHeader(token))
+      .expect(400);
+    const inactiveDeletion = await request(app)
+      .delete(`/api/users/${inactiveAdmin._id}`)
+      .set(authHeader(token))
+      .expect(200);
+
+    expect(inactiveDeletion.body.message).toMatch(/deleted/i);
+  });
+
   it('suspends users with related records instead of hard deleting them', async () => {
     const admin = await createUser({ email: 'delete-user-admin@example.com', role: 'admin' });
     const user = await createUser({ email: 'delete-user@example.com' });
