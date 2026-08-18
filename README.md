@@ -74,12 +74,30 @@ User: user@smartadventure.com / User1234
 ## Scripts
 
 ```bash
-npm run dev     # Start development server with nodemon
-npm start       # Start production-style server
-npm run seed    # Seed MongoDB
-npm run lint    # Run ESLint
-npm run build   # Import-check application modules
+npm run dev           # Start development server with nodemon
+npm start             # Start production-style server
+npm run seed          # Seed MongoDB
+npm run lint          # Run ESLint
+npm run build         # Import-check application modules
+npm test              # Run the Vitest API/service suite once
+npm run test:coverage # Run tests and write a V8 coverage report
 ```
+
+## Testing
+
+The test suite uses Vitest, Supertest, and `mongodb-memory-server`. It starts an ephemeral MongoDB
+instance, clears every collection after each test, and disconnects after the run. It does not use
+the development database configured in `.env`.
+
+```bash
+npm test
+npm run test:coverage
+npm run lint
+npm run build
+```
+
+The first test run may need to obtain the MongoDB test binary. Tests also need permission to bind a
+local loopback port for the in-memory database.
 
 ## Main API Routes
 
@@ -220,6 +238,39 @@ GET /api/admin/analytics
 
 Admin endpoints require a valid JWT for a user with role `admin`.
 
+## List response and filter contract
+
+Paginated list endpoints accept `page` (minimum `1`) and `limit` (`1` to `100`). Defaults are page
+`1` and limit `10`. Their response includes the resource array plus:
+
+```json
+{
+  "pagination": {
+    "page": 1,
+    "limit": 10,
+    "total": 42,
+    "pages": 5
+  }
+}
+```
+
+Supported filters are:
+
+| Endpoint | Filters |
+| --- | --- |
+| `GET /api/activities` | `search`, `province`, `district`, `difficulty`, `riskLevel`, `featured`, `status` (admin) |
+| `GET /api/operators` | `search`, `status` (admin) |
+| `GET /api/bookings` | `status`, `paymentStatus`, `from`, `to`, `search` |
+| `GET /api/reviews` | `activity`, `operator`, `status` (admin) |
+| `GET /api/users` | `search`, `role`, `status` |
+| `GET /api/support` | `status`, `category` |
+| `GET /api/notifications` | `user` (admin); regular users always receive their own records |
+| `GET /api/newsletter` | Pagination only |
+
+Search values are treated as literal, case-insensitive text. Booking `from` and `to` values must be
+ISO dates and `to` cannot precede `from`. Public activity/operator/review lists hide non-public
+records; administrator credentials expose the documented status filters.
+
 ## Authentication
 
 Login and register return a JWT in the JSON response and also set an HTTP-only cookie. Protected routes accept:
@@ -242,6 +293,27 @@ Supported uploads:
 - Operator logo: `POST /api/operators/:id/logo`
 
 Use multipart form data with field names `avatar`, `gallery`, and `logo`.
+
+Each file is limited to 5 MB. JPEG (`.jpg`/`.jpeg`), PNG (`.png`), and WebP (`.webp`) are supported,
+and the extension, declared MIME type, and detected file signature must agree. Activity gallery
+requests accept at most eight files. Failed uploads are removed, and replacing a managed avatar or
+operator logo removes the previous file without deleting paths outside the configured upload root.
+
+## Production configuration
+
+Startup validates environment values before serving requests. For production:
+
+- set `NODE_ENV=production`;
+- use an integer `PORT` from `1` through `65535`;
+- provide a `mongodb://` or `mongodb+srv://` `MONGO_URI`;
+- set `JWT_SECRET` to a non-default secret of at least 32 characters;
+- express `JWT_EXPIRES_IN` as a positive duration such as `1h` or `7d`;
+- set `JWT_COOKIE_EXPIRES_IN` to a positive whole number of days;
+- provide one or more comma-separated HTTP(S) origins in `CLIENT_ORIGIN`;
+- keep `UPLOAD_DIR` as a non-empty relative path without `..` traversal.
+
+The values in `.env.example` are development placeholders. Replace secrets and origins for every
+deployed environment.
 
 ## Security Notes
 
