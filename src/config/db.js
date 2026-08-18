@@ -9,3 +9,5 @@ export const connectDB = async () => {
 
   return connection;
 };
+
+export const disconnectDB = () => mongoose.disconnect();

@@ -1,6 +1,7 @@
-import { connectDB } from './config/db.js';
+import { connectDB, disconnectDB } from './config/db.js';
 import { env } from './config/env.js';
 import app from './app.js';
+import { createShutdownHandler } from './utils/shutdown.js';
 
 const startServer = async () => {
   try {
@@ -10,10 +11,12 @@ const startServer = async () => {
       console.log(`API server running on port ${env.PORT}`);
     });
 
-    const shutdown = () => {
-      console.log('Shutting down API server...');
-      server.close(() => process.exit(0));
-    };
+    const shutdown = createShutdownHandler({
+      disconnect: disconnectDB,
+      exit: process.exit,
+      logger: { error: console.error, info: console.log },
+      server,
+    });
 
     process.on('SIGINT', shutdown);
     process.on('SIGTERM', shutdown);
