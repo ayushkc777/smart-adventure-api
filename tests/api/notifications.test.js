@@ -72,6 +72,31 @@ describe('notifications api', () => {
       .expect(422);
   });
 
+  it('requires notification recipients to exist and be active', async () => {
+    const admin = await createUser({ email: 'notification-recipient-admin@example.com', role: 'admin' });
+    const suspended = await createUser({
+      email: 'notification-suspended@example.com',
+      status: 'suspended',
+    });
+    const adminToken = await loginUser(admin);
+    const payload = { message: 'Review your trip update.', title: 'Trip update' };
+
+    const missing = await request(app)
+      .post('/api/notifications')
+      .set(authHeader(adminToken))
+      .send({ ...payload, user: '507f1f77bcf86cd799439099' })
+      .expect(404);
+    const inactive = await request(app)
+      .post('/api/notifications')
+      .set(authHeader(adminToken))
+      .send({ ...payload, user: suspended._id })
+      .expect(400);
+
+    expect(missing.body.message).toBe('Notification recipient not found.');
+    expect(inactive.body.message).toBe('Notifications may only be sent to active users.');
+    expect(await Notification.countDocuments()).toBe(0);
+  });
+
   it('enforces ownership for read updates and deletion with admin override', async () => {
     const owner = await createUser({ email: 'notification-action-owner@example.com' });
     const other = await createUser({ email: 'notification-action-other@example.com' });

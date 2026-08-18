@@ -1,4 +1,5 @@
 import { Notification } from '../models/Notification.js';
+import { User } from '../models/User.js';
 import { ApiError } from '../utils/apiError.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { getPagination, sendPaginated } from '../utils/pagination.js';
@@ -12,6 +13,14 @@ export const listNotifications = asyncHandler(async (req, res) => {
 });
 
 export const createNotification = asyncHandler(async (req, res) => {
+  const recipient = await User.findById(req.body.user).select('status');
+  if (!recipient) {
+    throw new ApiError(404, 'Notification recipient not found.');
+  }
+  if (recipient.status !== 'active') {
+    throw new ApiError(400, 'Notifications may only be sent to active users.');
+  }
+
   const notification = await Notification.create(req.body);
 
   res.status(201).json({
