@@ -35,6 +35,34 @@ describe('activities and operators api', () => {
     expect(adminResponse.body.operators[0].companyName).toBe('Inactive Operator');
   });
 
+  it('hides inactive activities publicly while allowing admin inspection', async () => {
+    const active = await createActivity({ overrides: { title: 'Visible Adventure' } });
+    const inactive = await createActivity({
+      overrides: { status: 'inactive', title: 'Hidden Adventure' },
+    });
+    const admin = await createUser({ email: 'admin-visibility@example.com', role: 'admin' });
+    const adminToken = await loginUser(admin);
+
+    const publicList = await request(app).get('/api/activities').expect(200);
+    expect(publicList.body.activities.map((activity) => activity.title)).toEqual([
+      active.title,
+    ]);
+    await request(app).get(`/api/activities/${inactive._id}`).expect(404);
+
+    const adminList = await request(app)
+      .get('/api/activities?status=inactive')
+      .set(authHeader(adminToken))
+      .expect(200);
+    const adminDetail = await request(app)
+      .get(`/api/activities/${inactive._id}`)
+      .set(authHeader(adminToken))
+      .expect(200);
+
+    expect(adminList.body.activities).toHaveLength(1);
+    expect(adminList.body.activities[0].title).toBe('Hidden Adventure');
+    expect(adminDetail.body.activity.status).toBe('inactive');
+  });
+
   it('creates and updates activities as admin while recalculating slug and priceFrom', async () => {
     const admin = await createUser({ email: 'admin-activities@example.com', role: 'admin' });
     const adminToken = await loginUser(admin);
