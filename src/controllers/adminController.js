@@ -70,6 +70,12 @@ export const getAnalytics = asyncHandler(async (req, res) => {
       { $sort: { '_id.year': 1, '_id.month': 1 } },
     ]),
     Booking.aggregate([
+      {
+        $match: {
+          bookingStatus: { $in: ['confirmed', 'completed'] },
+          paymentStatus: 'paid',
+        },
+      },
       { $group: { _id: '$activity', bookings: { $sum: 1 }, revenue: { $sum: '$totalPrice' } } },
       { $sort: { bookings: -1 } },
       { $limit: 5 },

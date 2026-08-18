@@ -4,7 +4,9 @@ import app from '../../src/app.js';
 import { NewsletterSubscription } from '../../src/models/NewsletterSubscription.js';
 import {
   authHeader,
+  createActivity,
   createBooking,
+  createOperator,
   createSupportMessage,
   createUser,
   loginUser,
@@ -189,6 +191,36 @@ describe('admin, support, newsletter, and uploads api', () => {
 
     expect(response.body.stats.revenue).toBe(26000);
     expect(response.body.stats.pendingSupport).toBe(1);
+  });
+
+  it('uses the dashboard revenue definition for top activity analytics', async () => {
+    const admin = await createUser({ email: 'analytics-admin@example.com', role: 'admin' });
+    const token = await loginUser(admin);
+    const operator = await createOperator();
+    const primaryActivity = await createActivity({
+      operator,
+      overrides: { title: 'Qualifying Revenue Leader' },
+    });
+    const secondaryActivity = await createActivity({
+      operator,
+      overrides: { title: 'Mixed Revenue Activity' },
+    });
+    await createBooking({ activity: primaryActivity, bookingStatus: 'confirmed', operator, paymentStatus: 'paid', totalPrice: 10000 });
+    await createBooking({ activity: primaryActivity, bookingStatus: 'completed', operator, paymentStatus: 'paid', totalPrice: 12000 });
+    await createBooking({ activity: primaryActivity, bookingStatus: 'cancelled', operator, paymentStatus: 'paid', totalPrice: 50000 });
+    await createBooking({ activity: secondaryActivity, bookingStatus: 'confirmed', operator, paymentStatus: 'unpaid', totalPrice: 90000 });
+    await createBooking({ activity: secondaryActivity, bookingStatus: 'confirmed', operator, paymentStatus: 'paid', totalPrice: 5000 });
+
+    const [dashboard, analytics] = await Promise.all([
+      request(app).get('/api/admin/dashboard').set(authHeader(token)).expect(200),
+      request(app).get('/api/admin/analytics').set(authHeader(token)).expect(200),
+    ]);
+
+    expect(dashboard.body.stats.revenue).toBe(27000);
+    expect(analytics.body.analytics.topActivities).toEqual([
+      expect.objectContaining({ bookings: 2, revenue: 22000, title: 'Qualifying Revenue Leader' }),
+      expect.objectContaining({ bookings: 1, revenue: 5000, title: 'Mixed Revenue Activity' }),
+    ]);
   });
 
   it('rejects disguised non-image avatar uploads', async () => {
