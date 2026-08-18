@@ -142,6 +142,27 @@ describe('bookings and reviews api', () => {
     });
   });
 
+  it('validates booking list date ranges', async () => {
+    const user = await createUser({ email: 'booking-range@example.com' });
+    const token = await loginUser(user);
+    await createBooking({ user });
+
+    const inverted = await request(app)
+      .get(`/api/bookings?from=${futureDate(30)}&to=${futureDate(10)}`)
+      .set(authHeader(token))
+      .expect(422);
+    const valid = await request(app)
+      .get(`/api/bookings?from=${futureDate(1)}&to=${futureDate(30)}`)
+      .set(authHeader(token))
+      .expect(200);
+
+    expect(inverted.body.errors).toContainEqual({
+      field: 'to',
+      message: 'To date must be on or after from date.',
+    });
+    expect(valid.body.bookings).toHaveLength(1);
+  });
+
   it('requires a completed booking before review creation and prevents duplicates', async () => {
     const user = await createUser({ email: 'reviewer@example.com' });
     const token = await loginUser(user);

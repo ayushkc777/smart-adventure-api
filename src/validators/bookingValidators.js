@@ -32,7 +32,13 @@ export const listBookingsValidator = [
     .isIn(paymentStatuses)
     .withMessage('Payment status is invalid.'),
   query('from').optional({ checkFalsy: true }).isISO8601().withMessage('From date is invalid.'),
-  query('to').optional({ checkFalsy: true }).isISO8601().withMessage('To date is invalid.'),
+  query('to')
+    .optional({ checkFalsy: true })
+    .isISO8601()
+    .withMessage('To date is invalid.')
+    .bail()
+    .custom((value, { req }) => !req.query.from || new Date(req.query.from) <= new Date(value))
+    .withMessage('To date must be on or after from date.'),
   query('search').optional({ checkFalsy: true }).trim().isLength({ max: 100 }),
 ];
 
