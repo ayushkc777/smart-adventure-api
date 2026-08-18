@@ -1,6 +1,9 @@
+import fs from 'node:fs/promises';
+import path from 'node:path';
 import request from 'supertest';
 import { describe, expect, it } from 'vitest';
 import app from '../../src/app.js';
+import { env } from '../../src/config/env.js';
 import { User } from '../../src/models/User.js';
 import { authHeader, createUser, loginUser, password } from '../helpers/factories.js';
 
@@ -72,6 +75,10 @@ describe('profile and password api', () => {
   });
 
   it('removes the avatar path from the authenticated profile', async () => {
+    const avatarDirectory = path.join(process.cwd(), env.UPLOAD_DIR, 'avatars');
+    const avatarPath = path.join(avatarDirectory, 'existing.png');
+    await fs.mkdir(avatarDirectory, { recursive: true });
+    await fs.writeFile(avatarPath, 'avatar');
     const user = await createUser({
       avatar: '/uploads/avatars/existing.png',
       email: 'profile-avatar@example.com',
@@ -85,6 +92,23 @@ describe('profile and password api', () => {
 
     expect(response.body.user.avatar).toBe('');
     expect((await User.findById(user._id)).avatar).toBe('');
+    await expect(fs.access(avatarPath)).rejects.toMatchObject({ code: 'ENOENT' });
+  });
+
+  it('does not delete avatar paths outside the managed upload folder', async () => {
+    const outsidePath = path.join(process.cwd(), env.UPLOAD_DIR, 'outside-avatar.png');
+    await fs.mkdir(path.dirname(outsidePath), { recursive: true });
+    await fs.writeFile(outsidePath, 'avatar');
+    const user = await createUser({
+      avatar: '/uploads/outside-avatar.png',
+      email: 'profile-external-avatar@example.com',
+    });
+    const token = await loginUser(user);
+
+    await request(app).delete('/api/users/me/avatar').set(authHeader(token)).expect(200);
+
+    await expect(fs.access(outsidePath)).resolves.toBeUndefined();
+    await fs.rm(outsidePath);
   });
 
   it('requires authentication for profile self-service routes', async () => {

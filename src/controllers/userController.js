@@ -5,7 +5,7 @@ import { User } from '../models/User.js';
 import { Wishlist } from '../models/Wishlist.js';
 import { ApiError } from '../utils/apiError.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
-import { getPublicFilePath } from '../middleware/upload.js';
+import { getPublicFilePath, removeManagedUpload } from '../middleware/upload.js';
 import { getPagination, sendPaginated } from '../utils/pagination.js';
 import { escapeRegex } from '../utils/search.js';
 
@@ -191,8 +191,10 @@ export const uploadAvatar = asyncHandler(async (req, res) => {
     throw new ApiError(400, 'Avatar image is required.');
   }
 
+  const previousAvatar = req.user.avatar;
   req.user.avatar = getPublicFilePath(req.file, 'avatars');
   await req.user.save();
+  await removeManagedUpload(previousAvatar, 'avatars');
 
   res.json({
     success: true,
@@ -202,8 +204,10 @@ export const uploadAvatar = asyncHandler(async (req, res) => {
 });
 
 export const deleteAvatar = asyncHandler(async (req, res) => {
+  const previousAvatar = req.user.avatar;
   req.user.avatar = '';
   await req.user.save();
+  await removeManagedUpload(previousAvatar, 'avatars');
 
   res.json({
     success: true,

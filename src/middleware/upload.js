@@ -52,6 +52,26 @@ export const useUploadFolder = (folder) => (req, res, next) => {
 
 export const getPublicFilePath = (file, folder) => `/uploads/${folder}/${file.filename}`;
 
+export const removeManagedUpload = async (publicPath, folder) => {
+  const prefix = `/uploads/${folder}/`;
+  if (typeof publicPath !== 'string' || !publicPath.startsWith(prefix)) return false;
+
+  const filename = publicPath.slice(prefix.length);
+  if (!filename || filename !== path.basename(filename)) return false;
+
+  const folderRoot = path.resolve(process.cwd(), env.UPLOAD_DIR, folder);
+  const target = path.resolve(folderRoot, filename);
+  if (path.dirname(target) !== folderRoot) return false;
+
+  try {
+    await fs.promises.rm(target, { force: true });
+    return true;
+  } catch (error) {
+    console.error('Could not remove managed upload.', error);
+    return false;
+  }
+};
+
 const removeFile = async (file) => {
   if (file?.path) {
     await fs.promises.rm(file.path, { force: true });

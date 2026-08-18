@@ -3,6 +3,7 @@ import path from 'node:path';
 import request from 'supertest';
 import { describe, expect, it } from 'vitest';
 import app from '../../src/app.js';
+import { env } from '../../src/config/env.js';
 import { Activity } from '../../src/models/Activity.js';
 import {
   authHeader,
@@ -24,7 +25,7 @@ async function createAdminSession(email) {
 
 async function uploadedFiles(folder) {
   try {
-    return await fs.readdir(path.join(process.cwd(), 'test-uploads', folder));
+    return await fs.readdir(path.join(process.cwd(), env.UPLOAD_DIR, folder));
   } catch (error) {
     if (error.code === 'ENOENT') return [];
     throw error;
@@ -117,7 +118,11 @@ describe('image upload api', () => {
 
   it('uploads a valid operator logo as admin', async () => {
     const token = await createAdminSession('logo-success@example.com');
-    const operator = await createOperator();
+    const logoDirectory = path.join(process.cwd(), env.UPLOAD_DIR, 'operators');
+    const previousLogoPath = path.join(logoDirectory, 'previous-logo.png');
+    await fs.mkdir(logoDirectory, { recursive: true });
+    await fs.writeFile(previousLogoPath, 'old logo');
+    const operator = await createOperator({ logo: '/uploads/operators/previous-logo.png' });
 
     const response = await request(app)
       .post(`/api/operators/${operator._id}/logo`)
@@ -126,6 +131,7 @@ describe('image upload api', () => {
       .expect(200);
 
     expect(response.body.operator.logo).toMatch(/^\/uploads\/operators\/.+\.png$/);
+    await expect(fs.access(previousLogoPath)).rejects.toMatchObject({ code: 'ENOENT' });
   });
 
   it('rejects missing and invalid operator logo files', async () => {

@@ -4,7 +4,7 @@ import { Operator } from '../models/Operator.js';
 import { Review } from '../models/Review.js';
 import { ApiError } from '../utils/apiError.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
-import { getPublicFilePath } from '../middleware/upload.js';
+import { getPublicFilePath, removeManagedUpload } from '../middleware/upload.js';
 import { recalculateActivityMetrics } from '../services/activityService.js';
 import { getPagination, sendPaginated } from '../utils/pagination.js';
 import { escapeRegex } from '../utils/search.js';
@@ -133,8 +133,10 @@ export const uploadOperatorLogo = asyncHandler(async (req, res) => {
     throw new ApiError(400, 'Logo image is required.');
   }
 
+  const previousLogo = operator.logo;
   operator.logo = getPublicFilePath(req.file, 'operators');
   await operator.save();
+  await removeManagedUpload(previousLogo, 'operators');
 
   res.json({
     success: true,
