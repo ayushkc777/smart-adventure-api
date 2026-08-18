@@ -27,3 +27,9 @@ export const supportSubmissionLimiter = createPublicSubmissionLimiter({
   limit: 20,
   message: 'Too many support requests. Please try again later.',
 });
+
+export const newsletterSubscriptionLimiter = createPublicSubmissionLimiter({
+  windowMs: 60 * 60 * 1000,
+  limit: 10,
+  message: 'Too many newsletter requests. Please try again later.',
+});

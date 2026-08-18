@@ -27,4 +27,17 @@ describe('public submission rate limits', () => {
     });
     expect(limited.headers['ratelimit-policy']).toBeDefined();
   });
+
+  it('limits newsletter traffic without leaking state into a new limiter', async () => {
+    const message = 'Too many newsletter requests. Please try again later.';
+    const firstApp = createLimitedApp(message);
+
+    await request(firstApp).post('/submit').expect(204);
+    await request(firstApp).post('/submit').expect(204);
+    const limited = await request(firstApp).post('/submit').expect(429);
+    expect(limited.body.message).toBe(message);
+
+    const isolatedApp = createLimitedApp(message);
+    await request(isolatedApp).post('/submit').expect(204);
+  });
 });
