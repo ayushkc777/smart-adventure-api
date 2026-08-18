@@ -17,6 +17,8 @@ const pngImage = Buffer.from(
   'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=',
   'base64',
 );
+const jpegImage = Buffer.from('ffd8ffe000104a46494600010100000100010000ffd9', 'hex');
+const webpImage = Buffer.from('5249464610000000574542505650382000000000', 'hex');
 
 async function createAdminSession(email) {
   const admin = await createUser({ email, role: 'admin' });
@@ -153,6 +155,48 @@ describe('image upload api', () => {
       })
       .expect(400);
     expect(invalid.body.message).toMatch(/file content/i);
+  });
+
+  it.each([
+    ['JPEG', jpegImage, 'image/jpeg', 'logo.jpg'],
+    ['PNG', pngImage, 'image/png', 'logo.png'],
+    ['WebP', webpImage, 'image/webp', 'logo.webp'],
+  ])('accepts matching %s signatures, MIME types, and extensions', async (label, image, contentType, filename) => {
+    const token = await createAdminSession(`matching-${label.toLowerCase()}@example.com`);
+    const operator = await createOperator({
+      companyName: `${label} Signature Operator`,
+      licenseNumber: `SIGNATURE-${label}`,
+    });
+
+    const response = await request(app)
+      .post(`/api/operators/${operator._id}/logo`)
+      .set(authHeader(token))
+      .attach('logo', image, { contentType, filename })
+      .expect(200);
+
+    expect(response.body.operator.logo).toMatch(new RegExp(`\\.${filename.split('.').at(-1)}$`));
+  });
+
+  it.each([
+    ['declared MIME', pngImage, 'image/jpeg', 'logo.jpg'],
+    ['extension', jpegImage, 'image/jpeg', 'logo.png'],
+    ['content signature', webpImage, 'image/png', 'logo.webp'],
+  ])('rejects an image with a mismatched %s and removes it', async (label, image, contentType, filename) => {
+    const token = await createAdminSession(`mismatch-${label.replace(' ', '-')}@example.com`);
+    const operator = await createOperator({
+      companyName: `${label} Mismatch Operator`,
+      licenseNumber: `MISMATCH-${label}`,
+    });
+    const before = await uploadedFiles('operators');
+
+    const response = await request(app)
+      .post(`/api/operators/${operator._id}/logo`)
+      .set(authHeader(token))
+      .attach('logo', image, { contentType, filename })
+      .expect(400);
+
+    expect(response.body.message).toMatch(/content, MIME type, and extension must match/i);
+    expect(await uploadedFiles('operators')).toEqual(before);
   });
 
   it('checks operator existence and admin authorization for logo uploads', async () => {

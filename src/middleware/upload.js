@@ -8,6 +8,11 @@ import { asyncHandler } from '../utils/asyncHandler.js';
 
 const allowedMimeTypes = new Set(['image/jpeg', 'image/png', 'image/webp']);
 const allowedExtensions = new Set(['.jpg', '.jpeg', '.png', '.webp']);
+const extensionsByMimeType = new Map([
+  ['image/jpeg', new Set(['.jpg', '.jpeg'])],
+  ['image/png', new Set(['.png'])],
+  ['image/webp', new Set(['.webp'])],
+]);
 
 const ensureDirectory = (destination) => {
   fs.mkdirSync(destination, { recursive: true });
@@ -98,6 +103,15 @@ export const validateUploadedFiles = asyncHandler(async (req, res, next) => {
     if (!detectedType || !allowedMimeTypes.has(detectedType.mime)) {
       await removeUploadedFiles(req);
       throw new ApiError(400, 'Uploaded file content is not a supported image type.');
+    }
+
+    const extension = path.extname(file.originalname).toLowerCase();
+    if (
+      detectedType.mime !== file.mimetype ||
+      !extensionsByMimeType.get(detectedType.mime)?.has(extension)
+    ) {
+      await removeUploadedFiles(req);
+      throw new ApiError(400, 'Uploaded image content, MIME type, and extension must match.');
     }
   }
 
