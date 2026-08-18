@@ -25,6 +25,6 @@ afterEach(async () => {
 
 afterAll(async () => {
   await mongoose.disconnect();
-  await mongoServer.stop();
+  await mongoServer?.stop();
   await fs.rm(path.join(process.cwd(), uploadDir), { force: true, recursive: true });
 });
