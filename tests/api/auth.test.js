@@ -1,4 +1,5 @@
 import request from 'supertest';
+import jwt from 'jsonwebtoken';
 import { describe, expect, it } from 'vitest';
 import app from '../../src/app.js';
 import { User } from '../../src/models/User.js';
@@ -52,5 +53,34 @@ describe('auth api', () => {
 
     await request(app).get('/api/admin/dashboard').set(authHeader(token)).expect(403);
     await request(app).get('/api/admin/dashboard').expect(401);
+  });
+
+  it('rejects malformed and incorrectly signed bearer tokens', async () => {
+    const malformed = await request(app)
+      .get('/api/auth/me')
+      .set(authHeader('not-a-jwt'))
+      .expect(401);
+    const wrongSignature = jwt.sign({ id: '507f1f77bcf86cd799439011' }, 'wrong-secret');
+
+    await request(app).get('/api/auth/me').set(authHeader(wrongSignature)).expect(401);
+    expect(malformed.body.success).toBe(false);
+    expect(malformed.body.message).toMatch(/token|invalid/i);
+  });
+
+  it('rejects expired bearer tokens', async () => {
+    const user = await createUser({ email: 'expired-token@example.com' });
+    const token = jwt.sign(
+      { id: user._id, role: user.role },
+      process.env.JWT_SECRET,
+      { expiresIn: -1 },
+    );
+
+    const response = await request(app)
+      .get('/api/auth/me')
+      .set(authHeader(token))
+      .expect(401);
+
+    expect(response.body.success).toBe(false);
+    expect(response.body.message).toMatch(/expired/i);
   });
 });
