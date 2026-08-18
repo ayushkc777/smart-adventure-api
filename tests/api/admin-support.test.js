@@ -137,6 +137,45 @@ describe('admin, support, newsletter, and uploads api', () => {
     await request(app).delete(`/api/newsletter/${first.body.subscription._id}`).set(authHeader(token)).expect(404);
   });
 
+  it('denies guest and user access to support administration routes', async () => {
+    const user = await createUser({ email: 'support-denied-user@example.com' });
+    const token = await loginUser(user);
+    const message = await createSupportMessage();
+    const routes = [
+      ['get', '/api/support'],
+      ['get', `/api/support/${message._id}`],
+      ['patch', `/api/support/${message._id}`],
+      ['delete', `/api/support/${message._id}`],
+    ];
+
+    for (const [method, route] of routes) {
+      await request(app)[method](route).send({ status: 'resolved' }).expect(401);
+      await request(app)[method](route)
+        .set(authHeader(token))
+        .send({ status: 'resolved' })
+        .expect(403);
+    }
+  });
+
+  it('denies guest and user access to newsletter administration routes', async () => {
+    const user = await createUser({ email: 'newsletter-denied-user@example.com' });
+    const token = await loginUser(user);
+    const subscription = await NewsletterSubscription.create({ email: 'private-list@example.com' });
+
+    for (const [method, route] of [
+      ['get', '/api/newsletter'],
+      ['delete', `/api/newsletter/${subscription._id}`],
+    ]) {
+      await request(app)[method](route).expect(401);
+      await request(app)[method](route).set(authHeader(token)).expect(403);
+    }
+
+    await request(app)
+      .post('/api/newsletter')
+      .send({ email: 'public-subscription@example.com' })
+      .expect(201);
+  });
+
   it('counts revenue only for paid confirmed or completed bookings', async () => {
     const admin = await createUser({ email: 'stats-admin@example.com', role: 'admin' });
     const token = await loginUser(admin);
