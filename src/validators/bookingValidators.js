@@ -3,6 +3,24 @@ import { requireAtLeastOneField } from './commonValidators.js';
 
 const bookingStatuses = ['pending', 'awaiting_payment', 'confirmed', 'completed', 'cancelled'];
 const paymentStatuses = ['unpaid', 'paid', 'refunded', 'failed'];
+const maxBookingExtras = 10;
+
+const bookingExtrasValidators = () => [
+  body('extras')
+    .optional()
+    .isArray({ max: maxBookingExtras })
+    .withMessage(`Extras must be an array with no more than ${maxBookingExtras} items.`)
+    .bail()
+    .custom((values) => new Set(values.map((value) => String(value).trim().toLowerCase())).size === values.length)
+    .withMessage('Extras must not contain duplicates.'),
+  body('extras.*')
+    .isString()
+    .withMessage('Each extra must be a string.')
+    .bail()
+    .trim()
+    .isLength({ min: 1, max: 60 })
+    .withMessage('Each extra must be between 1 and 60 characters.'),
+];
 
 export const createBookingValidator = [
   body('activity').isMongoId().withMessage('Activity id is required.'),
@@ -22,7 +40,7 @@ export const createBookingValidator = [
     .isLength({ min: 5, max: 30 })
     .withMessage('Emergency phone is required.'),
   body('emergencyContact.relationship').optional({ checkFalsy: true }).trim().isLength({ max: 60 }),
-  body('extras').optional().isArray().withMessage('Extras must be an array.'),
+  ...bookingExtrasValidators(),
 ];
 
 export const listBookingsValidator = [
@@ -67,5 +85,5 @@ export const updateBookingValidator = [
     .isLength({ min: 5, max: 30 })
     .withMessage('Emergency phone is invalid.'),
   body('emergencyContact.relationship').optional({ checkFalsy: true }).trim().isLength({ max: 60 }),
-  body('extras').optional().isArray().withMessage('Extras must be an array.'),
+  ...bookingExtrasValidators(),
 ];

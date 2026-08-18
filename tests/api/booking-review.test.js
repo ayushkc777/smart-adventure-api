@@ -43,6 +43,40 @@ describe('bookings and reviews api', () => {
     expect(response.body.booking.totalPrice).toBe(9500 * 3 + 500);
   });
 
+  it('rejects duplicate and malformed booking extras', async () => {
+    const user = await createUser({ email: 'booking-extras@example.com' });
+    const token = await loginUser(user);
+    const operator = await createOperator();
+    const activity = await createActivity({ operator });
+    const bookingPayload = {
+      activity: activity._id.toString(),
+      date: futureDate(),
+      emergencyContact: { name: 'Backup Contact', phone: '9811111111' },
+      operator: operator._id.toString(),
+      travellers: { count: 1, email: user.email, leadName: user.fullName, phone: user.phone },
+    };
+
+    const duplicate = await request(app)
+      .post('/api/bookings')
+      .set(authHeader(token))
+      .send({ ...bookingPayload, extras: ['Photo', ' photo '] })
+      .expect(422);
+    const malformed = await request(app)
+      .post('/api/bookings')
+      .set(authHeader(token))
+      .send({ ...bookingPayload, extras: [42] })
+      .expect(422);
+
+    expect(duplicate.body.errors).toContainEqual({
+      field: 'extras',
+      message: 'Extras must not contain duplicates.',
+    });
+    expect(malformed.body.errors).toContainEqual({
+      field: 'extras[0]',
+      message: 'Each extra must be a string.',
+    });
+  });
+
   it('restricts booking access to the owner or admin and supports status updates', async () => {
     const owner = await createUser({ email: 'booking-owner@example.com' });
     const otherUser = await createUser({ email: 'booking-other@example.com' });

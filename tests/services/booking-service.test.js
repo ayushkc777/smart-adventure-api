@@ -35,4 +35,13 @@ describe('booking total service', () => {
       'Extras must be an array.',
     );
   });
+
+  it.each([
+    [['photo', ' Photo '], 'Extras must not contain duplicates.'],
+    [[42], 'Each extra must be a non-empty string'],
+    [[''], 'Each extra must be a non-empty string'],
+    [[...Array.from({ length: 11 }, (_, index) => `extra-${index}`)], 'No more than 10 extras'],
+  ])('rejects malformed extras %j', (extras, message) => {
+    expect(() => calculateBookingTotal(activity, operatorId, 1, extras)).toThrow(message);
+  });
 });

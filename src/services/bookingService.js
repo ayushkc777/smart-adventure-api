@@ -21,6 +21,16 @@ export const calculateBookingTotal = (activity, operatorId, travellerCount, extr
   if (!Array.isArray(extras)) {
     throw new ApiError(400, 'Extras must be an array.');
   }
+  if (extras.length > 10) {
+    throw new ApiError(400, 'No more than 10 extras may be selected.');
+  }
+  if (extras.some((extra) => typeof extra !== 'string' || !extra.trim() || extra.trim().length > 60)) {
+    throw new ApiError(400, 'Each extra must be a non-empty string up to 60 characters.');
+  }
+  const normalizedExtras = extras.map((extra) => extra.trim().toLowerCase());
+  if (new Set(normalizedExtras).size !== normalizedExtras.length) {
+    throw new ApiError(400, 'Extras must not contain duplicates.');
+  }
 
   const extrasTotal = extras.length * 500;
   return Number(selectedPrice.price) * count + extrasTotal;
