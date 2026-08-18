@@ -2,6 +2,7 @@ import request from 'supertest';
 import { describe, expect, it } from 'vitest';
 import app from '../../src/app.js';
 import { Activity } from '../../src/models/Activity.js';
+import { Booking } from '../../src/models/Booking.js';
 import {
   authHeader,
   createActivity,
@@ -64,6 +65,28 @@ describe('bookings and reviews api', () => {
 
     expect(statusResponse.body.booking.bookingStatus).toBe('confirmed');
     expect(statusResponse.body.booking.paymentStatus).toBe('paid');
+  });
+
+  it('denies booking updates and cancellation by another user', async () => {
+    const owner = await createUser({ email: 'booking-write-owner@example.com' });
+    const otherUser = await createUser({ email: 'booking-write-other@example.com' });
+    const booking = await createBooking({ user: owner });
+    const otherToken = await loginUser(otherUser);
+
+    const updateResponse = await request(app)
+      .patch(`/api/bookings/${booking._id}`)
+      .set(authHeader(otherToken))
+      .send({ date: futureDate(30) })
+      .expect(403);
+    const cancelResponse = await request(app)
+      .patch(`/api/bookings/${booking._id}/cancel`)
+      .set(authHeader(otherToken))
+      .expect(403);
+
+    expect(updateResponse.body.message).toBe('You cannot update this booking.');
+    expect(cancelResponse.body.message).toBe('You cannot cancel this booking.');
+    const unchangedBooking = await Booking.findById(booking._id);
+    expect(unchangedBooking.bookingStatus).toBe('awaiting_payment');
   });
 
   it('requires a completed booking before review creation and prevents duplicates', async () => {
