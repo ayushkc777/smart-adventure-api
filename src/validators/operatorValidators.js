@@ -1,4 +1,5 @@
 import { body, query } from 'express-validator';
+import { requireAtLeastOneField } from './commonValidators.js';
 
 export const listOperatorsValidator = [
   query('search').optional({ checkFalsy: true }).trim().isLength({ max: 100 }),
@@ -28,4 +29,17 @@ const operatorRules = (isUpdate = false) => {
 };
 
 export const operatorValidator = operatorRules();
-export const operatorUpdateValidator = operatorRules(true);
+export const operatorUpdateValidator = [
+  requireAtLeastOneField([
+    'companyName',
+    'licenseNumber',
+    'location',
+    'safetyScore',
+    'responseRate',
+    'yearsExperience',
+    'languages',
+    'insuranceAvailable',
+    'status',
+  ]),
+  ...operatorRules(true),
+];

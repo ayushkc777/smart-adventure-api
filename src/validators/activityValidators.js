@@ -1,4 +1,5 @@
 import { body, query } from 'express-validator';
+import { requireAtLeastOneField } from './commonValidators.js';
 
 const difficultyValues = ['Easy', 'Moderate', 'Challenging', 'Extreme'];
 const riskValues = ['Low', 'Medium', 'High'];
@@ -37,4 +38,21 @@ const activityRules = (isUpdate = false) => {
 };
 
 export const activityValidator = activityRules();
-export const activityUpdateValidator = activityRules(true);
+export const activityUpdateValidator = [
+  requireAtLeastOneField([
+    'title',
+    'description',
+    'province',
+    'district',
+    'difficulty',
+    'duration',
+    'safetyScore',
+    'riskLevel',
+    'bestSeason',
+    'gallery',
+    'featured',
+    'status',
+    'operatorPrices',
+  ]),
+  ...activityRules(true),
+];

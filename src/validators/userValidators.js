@@ -1,4 +1,5 @@
 import { body, query } from 'express-validator';
+import { requireAtLeastOneField } from './commonValidators.js';
 
 export const listUsersValidator = [
   query('search').optional({ checkFalsy: true }).trim().isLength({ max: 100 }),
@@ -10,6 +11,15 @@ export const listUsersValidator = [
 ];
 
 export const updateUserValidator = [
+  requireAtLeastOneField([
+    'fullName',
+    'phone',
+    'nationality',
+    'preferredLanguage',
+    'role',
+    'status',
+    'emergencyContact',
+  ]),
   body('fullName').optional().trim().isLength({ min: 2, max: 80 }).withMessage('Full name is invalid.'),
   body('phone').optional({ checkFalsy: true }).trim().isLength({ max: 30 }),
   body('nationality').optional({ checkFalsy: true }).trim().isLength({ max: 80 }),

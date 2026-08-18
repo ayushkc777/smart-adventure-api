@@ -1,4 +1,5 @@
 import { body, query } from 'express-validator';
+import { requireAtLeastOneField } from './commonValidators.js';
 
 const bookingStatuses = ['pending', 'awaiting_payment', 'confirmed', 'completed', 'cancelled'];
 const paymentStatuses = ['unpaid', 'paid', 'refunded', 'failed'];
@@ -36,11 +37,13 @@ export const listBookingsValidator = [
 ];
 
 export const updateBookingStatusValidator = [
+  requireAtLeastOneField(['bookingStatus', 'paymentStatus']),
   body('bookingStatus').optional().isIn(bookingStatuses).withMessage('Booking status is invalid.'),
   body('paymentStatus').optional().isIn(paymentStatuses).withMessage('Payment status is invalid.'),
 ];
 
 export const updateBookingValidator = [
+  requireAtLeastOneField(['date', 'travellers', 'emergencyContact', 'extras']),
   body('date')
     .optional()
     .isISO8601()

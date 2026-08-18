@@ -1,4 +1,13 @@
-import { param, query } from 'express-validator';
+import { body, param, query } from 'express-validator';
+
+export const requireAtLeastOneField = (fields) =>
+  body().custom((value) => {
+    const payload = value && typeof value === 'object' ? value : {};
+    if (!fields.some((field) => Object.prototype.hasOwnProperty.call(payload, field))) {
+      throw new Error('At least one supported field is required.');
+    }
+    return true;
+  });
 
 export const mongoIdParam = (name = 'id') => [
   param(name).isMongoId().withMessage(`${name} must be a valid MongoDB id.`),

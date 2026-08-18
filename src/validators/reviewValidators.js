@@ -1,4 +1,5 @@
 import { body, query } from 'express-validator';
+import { requireAtLeastOneField } from './commonValidators.js';
 
 export const createReviewValidator = [
   body('activity').isMongoId().withMessage('Activity id is required.'),
@@ -18,6 +19,7 @@ export const listReviewsValidator = [
 ];
 
 export const updateReviewValidator = [
+  requireAtLeastOneField(['rating', 'safetyRating', 'comment', 'status']),
   body('rating').optional().isFloat({ min: 1, max: 5 }).withMessage('Rating must be between 1 and 5.'),
   body('safetyRating')
     .optional()
