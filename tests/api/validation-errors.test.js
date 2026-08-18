@@ -2,7 +2,13 @@ import request from 'supertest';
 import { describe, expect, it } from 'vitest';
 import app from '../../src/app.js';
 import { User } from '../../src/models/User.js';
-import { password } from '../helpers/factories.js';
+import {
+  authHeader,
+  createOperator,
+  createUser,
+  loginUser,
+  password,
+} from '../helpers/factories.js';
 
 describe('validation error response contract', () => {
   it('returns field-level details for request validation failures', async () => {
@@ -61,6 +67,45 @@ describe('validation error response contract', () => {
           message: 'id must be a valid MongoDB id.',
         },
       ],
+    });
+  });
+
+  it('returns a stable response for unknown routes and missing resources', async () => {
+    const unknownRoute = await request(app).get('/api/not-a-real-route').expect(404);
+    const missingOperator = await request(app)
+      .get('/api/operators/507f1f77bcf86cd799439011')
+      .expect(404);
+
+    expect(unknownRoute.body).toEqual({
+      success: false,
+      message: 'Route not found: /api/not-a-real-route',
+      errors: [],
+    });
+    expect(missingOperator.body).toMatchObject({
+      success: false,
+      message: 'Operator not found.',
+    });
+  });
+
+  it('maps database unique-index conflicts to a field-specific 409', async () => {
+    const admin = await createUser({ email: 'duplicate-index-admin@example.com', role: 'admin' });
+    const token = await loginUser(admin);
+    await createOperator({ licenseNumber: 'DUPLICATE-LICENSE' });
+
+    const response = await request(app)
+      .post('/api/operators')
+      .set(authHeader(token))
+      .send({
+        companyName: 'Second Licensed Operator',
+        licenseNumber: 'DUPLICATE-LICENSE',
+        location: 'Kathmandu',
+      })
+      .expect(409);
+
+    expect(response.body).toMatchObject({
+      success: false,
+      message: 'licenseNumber already exists.',
+      errors: [],
     });
   });
 });
