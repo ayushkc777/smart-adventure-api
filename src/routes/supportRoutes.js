@@ -7,6 +7,7 @@ import {
   updateSupportMessage,
 } from '../controllers/supportController.js';
 import { authorize, protect } from '../middleware/auth.js';
+import { supportSubmissionLimiter } from '../middleware/rateLimit.js';
 import { validate } from '../middleware/validate.js';
 import { mongoIdParam, paginationValidators } from '../validators/commonValidators.js';
 import {
@@ -17,7 +18,13 @@ import {
 
 export const supportRouter = express.Router();
 
-supportRouter.post('/', createSupportMessageValidator, validate, createSupportMessage);
+supportRouter.post(
+  '/',
+  supportSubmissionLimiter,
+  createSupportMessageValidator,
+  validate,
+  createSupportMessage,
+);
 supportRouter.get(
   '/',
   protect,
