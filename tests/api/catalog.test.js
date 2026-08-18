@@ -97,6 +97,57 @@ describe('activities and operators api', () => {
     expect(updateResponse.body.activity.slug).toBe('updated-activity-title');
   });
 
+  it('validates nested operator price fields and duplicate operators', async () => {
+    const admin = await createUser({ email: 'admin-price-validation@example.com', role: 'admin' });
+    const adminToken = await loginUser(admin);
+    const operator = await createOperator();
+    const basePayload = {
+      description: 'A detailed activity description used to validate nested operator prices.',
+      difficulty: 'Easy',
+      district: 'Kaski',
+      duration: 'One hour',
+      province: 'Gandaki',
+      riskLevel: 'Low',
+      title: 'Nested Price Validation',
+    };
+
+    const duplicateResponse = await request(app)
+      .post('/api/activities')
+      .set(authHeader(adminToken))
+      .send({
+        ...basePayload,
+        operatorPrices: [
+          { operator: operator._id.toString(), price: 8000 },
+          { operator: operator._id.toString(), price: 9000 },
+        ],
+      })
+      .expect(422);
+    const malformedResponse = await request(app)
+      .post('/api/activities')
+      .set(authHeader(adminToken))
+      .send({
+        ...basePayload,
+        operatorPrices: [{
+          currency: 'USD',
+          includedServices: ['Helmet', ' helmet '],
+          operator: operator._id.toString(),
+          packageName: '',
+          price: 8000,
+        }],
+      })
+      .expect(422);
+
+    expect(duplicateResponse.body.errors).toContainEqual({
+      field: 'operatorPrices',
+      message: 'Operator prices must not contain duplicate operators.',
+    });
+    expect(malformedResponse.body.errors).toEqual(expect.arrayContaining([
+      { field: 'operatorPrices[0].currency', message: 'Operator price currency must be NPR.' },
+      { field: 'operatorPrices[0].includedServices', message: 'Included services must not contain duplicates.' },
+      { field: 'operatorPrices[0].packageName', message: 'Package name must be between 1 and 100 characters.' },
+    ]));
+  });
+
   it('archives activities with related records instead of leaving orphaned bookings', async () => {
     const admin = await createUser({ email: 'admin-delete-activity@example.com', role: 'admin' });
     const adminToken = await loginUser(admin);

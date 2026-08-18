@@ -4,6 +4,52 @@ import { requireAtLeastOneField } from './commonValidators.js';
 const difficultyValues = ['Easy', 'Moderate', 'Challenging', 'Extreme'];
 const riskValues = ['Low', 'Medium', 'High'];
 const statusValues = ['active', 'inactive', 'archived'];
+const maxOperatorPrices = 25;
+
+const operatorPriceRules = () => [
+  body('operatorPrices')
+    .optional()
+    .isArray({ max: maxOperatorPrices })
+    .withMessage(`Operator prices must be an array with no more than ${maxOperatorPrices} items.`)
+    .bail()
+    .custom((prices) => {
+      const operatorIds = prices.map((price) => String(price?.operator ?? ''));
+      return new Set(operatorIds).size === operatorIds.length;
+    })
+    .withMessage('Operator prices must not contain duplicate operators.'),
+  body('operatorPrices.*.operator').isMongoId().withMessage('Operator id must be valid.'),
+  body('operatorPrices.*.packageName')
+    .optional()
+    .isString()
+    .withMessage('Package name must be text.')
+    .bail()
+    .trim()
+    .isLength({ min: 1, max: 100 })
+    .withMessage('Package name must be between 1 and 100 characters.'),
+  body('operatorPrices.*.price')
+    .isFloat({ min: 0, max: 100000000 })
+    .withMessage('Operator price must be between 0 and 100000000.'),
+  body('operatorPrices.*.currency')
+    .optional()
+    .trim()
+    .toUpperCase()
+    .isIn(['NPR'])
+    .withMessage('Operator price currency must be NPR.'),
+  body('operatorPrices.*.includedServices')
+    .optional()
+    .isArray({ max: 20 })
+    .withMessage('Included services must be an array with no more than 20 items.')
+    .bail()
+    .custom((services) => new Set(services.map((service) => String(service).trim().toLowerCase())).size === services.length)
+    .withMessage('Included services must not contain duplicates.'),
+  body('operatorPrices.*.includedServices.*')
+    .isString()
+    .withMessage('Each included service must be text.')
+    .bail()
+    .trim()
+    .isLength({ min: 1, max: 100 })
+    .withMessage('Each included service must be between 1 and 100 characters.'),
+];
 
 export const listActivitiesValidator = [
   query('search').optional({ checkFalsy: true }).trim().isLength({ max: 100 }),
@@ -29,9 +75,7 @@ const activityRules = (isUpdate = false) => {
   body('gallery').optional().isArray().withMessage('Gallery must be an array.'),
   body('featured').optional().isBoolean().withMessage('Featured must be boolean.'),
   body('status').optional().isIn(statusValues).withMessage('Status is invalid.'),
-  body('operatorPrices').optional().isArray().withMessage('Operator prices must be an array.'),
-  body('operatorPrices.*.operator').optional().isMongoId().withMessage('Operator id must be valid.'),
-  body('operatorPrices.*.price').optional().isFloat({ min: 0 }).withMessage('Operator price must be positive.'),
+  ...operatorPriceRules(),
   ];
 
   return isUpdate ? rules.map((rule) => rule.optional()) : rules;
