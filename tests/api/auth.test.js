@@ -83,4 +83,31 @@ describe('auth api', () => {
     expect(response.body.success).toBe(false);
     expect(response.body.message).toMatch(/expired/i);
   });
+
+  it('rejects sessions after an account is suspended', async () => {
+    const user = await createUser({ email: 'suspended-session@example.com' });
+    const token = await loginUser(user);
+    user.status = 'suspended';
+    await user.save();
+
+    const response = await request(app)
+      .get('/api/auth/me')
+      .set(authHeader(token))
+      .expect(403);
+
+    expect(response.body.message).toBe('Account is not active.');
+  });
+
+  it('rejects sessions whose user has been deleted', async () => {
+    const user = await createUser({ email: 'deleted-session@example.com' });
+    const token = await loginUser(user);
+    await User.deleteOne({ _id: user._id });
+
+    const response = await request(app)
+      .get('/api/auth/me')
+      .set(authHeader(token))
+      .expect(401);
+
+    expect(response.body.message).toBe('Authenticated user no longer exists.');
+  });
 });
