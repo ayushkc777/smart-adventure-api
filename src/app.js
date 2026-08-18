@@ -9,10 +9,11 @@ import { errorHandler } from './middleware/errorHandler.js';
 import { notFound } from './middleware/notFound.js';
 import { apiRouter } from './routes/index.js';
 import { ApiError } from './utils/apiError.js';
+import { isOriginAllowed, parseAllowedOrigins } from './utils/cors.js';
 
 const app = express();
 
-const allowedOrigins = env.CLIENT_ORIGIN.split(',').map((origin) => origin.trim());
+const allowedOrigins = parseAllowedOrigins(env.CLIENT_ORIGIN);
 
 app.use(
   helmet({
@@ -23,7 +24,7 @@ app.use(
 app.use(
   cors({
     origin(origin, callback) {
-      if (!origin || allowedOrigins.includes(origin)) {
+      if (isOriginAllowed(origin, allowedOrigins)) {
         return callback(null, true);
       }
 
