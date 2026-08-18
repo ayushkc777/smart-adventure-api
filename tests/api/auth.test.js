@@ -110,4 +110,43 @@ describe('auth api', () => {
 
     expect(response.body.message).toBe('Authenticated user no longer exists.');
   });
+
+  it('sets secure authentication cookie attributes on registration and login', async () => {
+    const registration = await request(app)
+      .post('/api/auth/register')
+      .send({
+        email: 'cookie-register@example.com',
+        fullName: 'Cookie User',
+        password,
+        phone: '9800000000',
+      })
+      .expect(201);
+    const registeredCookie = registration.headers['set-cookie'][0];
+
+    expect(registeredCookie).toContain('token=');
+    expect(registeredCookie).toContain('HttpOnly');
+    expect(registeredCookie).toContain('SameSite=Lax');
+    expect(registeredCookie).toContain('Max-Age=604800');
+
+    const login = await request(app)
+      .post('/api/auth/login')
+      .send({ email: 'cookie-register@example.com', password })
+      .expect(200);
+    expect(login.headers['set-cookie'][0]).toContain('HttpOnly');
+  });
+
+  it('clears the authentication cookie on logout', async () => {
+    const user = await createUser({ email: 'cookie-logout@example.com' });
+    const token = await loginUser(user);
+    const response = await request(app)
+      .post('/api/auth/logout')
+      .set(authHeader(token))
+      .expect(200);
+    const cookie = response.headers['set-cookie'][0];
+
+    expect(cookie).toContain('token=;');
+    expect(cookie).toContain('Expires=Thu, 01 Jan 1970');
+    expect(cookie).toContain('HttpOnly');
+    expect(cookie).toContain('SameSite=Lax');
+  });
 });
