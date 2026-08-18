@@ -89,6 +89,59 @@ describe('bookings and reviews api', () => {
     expect(unchangedBooking.bookingStatus).toBe('awaiting_payment');
   });
 
+  it('prevents owners from editing completed or cancelled bookings', async () => {
+    const owner = await createUser({ email: 'immutable-owner@example.com' });
+    const ownerToken = await loginUser(owner);
+    const completed = await createBooking({ bookingStatus: 'completed', user: owner });
+    const cancelled = await createBooking({ bookingStatus: 'cancelled', user: owner });
+
+    for (const booking of [completed, cancelled]) {
+      const response = await request(app)
+        .patch(`/api/bookings/${booking._id}`)
+        .set(authHeader(ownerToken))
+        .send({ date: futureDate(45) })
+        .expect(400);
+
+      expect(response.body.message).toMatch(/cannot be updated/i);
+    }
+  });
+
+  it('requires confirmed and completed bookings to be cancelled instead of deleted', async () => {
+    const admin = await createUser({ email: 'immutable-admin@example.com', role: 'admin' });
+    const adminToken = await loginUser(admin);
+    const confirmed = await createBooking({ bookingStatus: 'confirmed' });
+    const completed = await createBooking({ bookingStatus: 'completed' });
+
+    for (const booking of [confirmed, completed]) {
+      const response = await request(app)
+        .delete(`/api/bookings/${booking._id}`)
+        .set(authHeader(adminToken))
+        .expect(400);
+
+      expect(response.body.message).toMatch(/cancelled instead of deleted/i);
+    }
+  });
+
+  it('refunds paid bookings when they are cancelled', async () => {
+    const owner = await createUser({ email: 'refund-owner@example.com' });
+    const ownerToken = await loginUser(owner);
+    const booking = await createBooking({
+      bookingStatus: 'confirmed',
+      paymentStatus: 'paid',
+      user: owner,
+    });
+
+    const response = await request(app)
+      .patch(`/api/bookings/${booking._id}/cancel`)
+      .set(authHeader(ownerToken))
+      .expect(200);
+
+    expect(response.body.booking).toMatchObject({
+      bookingStatus: 'cancelled',
+      paymentStatus: 'refunded',
+    });
+  });
+
   it('requires a completed booking before review creation and prevents duplicates', async () => {
     const user = await createUser({ email: 'reviewer@example.com' });
     const token = await loginUser(user);
