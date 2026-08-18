@@ -147,6 +147,10 @@ export const uploadActivityGallery = asyncHandler(async (req, res) => {
     throw new ApiError(404, 'Activity not found.');
   }
 
+  if (!req.files?.length) {
+    throw new ApiError(400, 'At least one gallery image is required.');
+  }
+
   const uploadedImages = req.files.map((file) => ({
     url: getPublicFilePath(file, 'activities'),
     alt: activity.title,
