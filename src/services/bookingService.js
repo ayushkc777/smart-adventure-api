@@ -5,7 +5,7 @@ import { ApiError } from '../utils/apiError.js';
 import { generateBookingReference } from '../utils/bookingReference.js';
 
 export const calculateBookingTotal = (activity, operatorId, travellerCount, extras = []) => {
-  const selectedPrice = activity.operatorPrices.find(
+  const selectedPrice = activity.operatorPrices?.find(
     (item) => item.operator.toString() === operatorId.toString(),
   );
 
@@ -13,8 +13,17 @@ export const calculateBookingTotal = (activity, operatorId, travellerCount, extr
     throw new ApiError(400, 'Selected operator is not available for this activity.');
   }
 
+  const count = Number(travellerCount);
+  if (!Number.isInteger(count) || count < 1) {
+    throw new ApiError(400, 'At least one traveller is required.');
+  }
+
+  if (!Array.isArray(extras)) {
+    throw new ApiError(400, 'Extras must be an array.');
+  }
+
   const extrasTotal = extras.length * 500;
-  return selectedPrice.price * travellerCount + extrasTotal;
+  return Number(selectedPrice.price) * count + extrasTotal;
 };
 
 export const createBooking = async ({ userId, payload }) => {
