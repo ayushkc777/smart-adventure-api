@@ -49,6 +49,29 @@ describe('notifications api', () => {
     expect(list.body.notifications[0].user).toBe(user._id.toString());
   });
 
+  it('paginates notification results with metadata', async () => {
+    const user = await createUser({ email: 'notifications-pages@example.com' });
+    const token = await loginUser(user);
+    await Notification.create([
+      { user: user._id, title: 'Notice one', message: 'First message.' },
+      { user: user._id, title: 'Notice two', message: 'Second message.' },
+      { user: user._id, title: 'Notice three', message: 'Third message.' },
+    ]);
+
+    const response = await request(app)
+      .get('/api/notifications?page=2&limit=2')
+      .set(authHeader(token))
+      .expect(200);
+
+    expect(response.body.notifications).toHaveLength(1);
+    expect(response.body.pagination).toEqual({ limit: 2, page: 2, pages: 2, total: 3 });
+
+    await request(app)
+      .get('/api/notifications?page=0&limit=101')
+      .set(authHeader(token))
+      .expect(422);
+  });
+
   it('enforces ownership for read updates and deletion with admin override', async () => {
     const owner = await createUser({ email: 'notification-action-owner@example.com' });
     const other = await createUser({ email: 'notification-action-other@example.com' });

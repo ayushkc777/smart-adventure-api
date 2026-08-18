@@ -1,15 +1,14 @@
 import { Notification } from '../models/Notification.js';
 import { ApiError } from '../utils/apiError.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
+import { getPagination, sendPaginated } from '../utils/pagination.js';
 
 export const listNotifications = asyncHandler(async (req, res) => {
   const filter = req.user.role === 'admin' && req.query.user ? { user: req.query.user } : { user: req.user._id };
-  const notifications = await Notification.find(filter).sort({ createdAt: -1 }).limit(50);
+  const { page, limit } = getPagination(req.query);
+  const query = Notification.find(filter).sort({ createdAt: -1 });
 
-  res.json({
-    success: true,
-    notifications,
-  });
+  await sendPaginated({ res, query, page, limit, dataKey: 'notifications' });
 });
 
 export const createNotification = asyncHandler(async (req, res) => {
