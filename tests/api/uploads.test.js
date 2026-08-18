@@ -1,6 +1,9 @@
+import fs from 'node:fs/promises';
+import path from 'node:path';
 import request from 'supertest';
 import { describe, expect, it } from 'vitest';
 import app from '../../src/app.js';
+import { Activity } from '../../src/models/Activity.js';
 import {
   authHeader,
   createActivity,
@@ -17,6 +20,15 @@ const pngImage = Buffer.from(
 async function createAdminSession(email) {
   const admin = await createUser({ email, role: 'admin' });
   return loginUser(admin);
+}
+
+async function uploadedFiles(folder) {
+  try {
+    return await fs.readdir(path.join(process.cwd(), 'test-uploads', folder));
+  } catch (error) {
+    if (error.code === 'ENOENT') return [];
+    throw error;
+  }
 }
 
 describe('image upload api', () => {
@@ -76,6 +88,7 @@ describe('image upload api', () => {
 
   it('returns not found when uploading to a missing activity', async () => {
     const token = await createAdminSession('gallery-missing@example.com');
+    const before = await uploadedFiles('activities');
 
     const response = await request(app)
       .post('/api/activities/507f1f77bcf86cd799439011/gallery')
@@ -84,6 +97,22 @@ describe('image upload api', () => {
       .expect(404);
 
     expect(response.body.message).toBe('Activity not found.');
+    expect(await uploadedFiles('activities')).toEqual(before);
+  });
+
+  it('removes uploaded files when activity persistence fails', async () => {
+    const token = await createAdminSession('gallery-save-failure@example.com');
+    const activity = await createActivity();
+    await Activity.collection.updateOne({ _id: activity._id }, { $unset: { title: '' } });
+    const before = await uploadedFiles('activities');
+
+    await request(app)
+      .post(`/api/activities/${activity._id}/gallery`)
+      .set(authHeader(token))
+      .attach('gallery', pngImage, { contentType: 'image/png', filename: 'activity.png' })
+      .expect(400);
+
+    expect(await uploadedFiles('activities')).toEqual(before);
   });
 
   it('uploads a valid operator logo as admin', async () => {

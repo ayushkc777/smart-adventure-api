@@ -58,6 +58,14 @@ const removeFile = async (file) => {
   }
 };
 
+export const removeUploadedFiles = async (req) => {
+  const files = [
+    ...(req.file ? [req.file] : []),
+    ...(Array.isArray(req.files) ? req.files : []),
+  ];
+  await Promise.all(files.map(removeFile));
+};
+
 export const validateUploadedFiles = asyncHandler(async (req, res, next) => {
   const files = [
     ...(req.file ? [req.file] : []),
@@ -68,7 +76,7 @@ export const validateUploadedFiles = asyncHandler(async (req, res, next) => {
     const detectedType = await fileTypeFromFile(file.path);
 
     if (!detectedType || !allowedMimeTypes.has(detectedType.mime)) {
-      await Promise.all(files.map(removeFile));
+      await removeUploadedFiles(req);
       throw new ApiError(400, 'Uploaded file content is not a supported image type.');
     }
   }

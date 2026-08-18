@@ -1,6 +1,7 @@
 import { ApiError } from '../utils/apiError.js';
+import { removeUploadedFiles } from './upload.js';
 
-export const errorHandler = (err, req, res, next) => {
+export const errorHandler = async (err, req, res, next) => {
   if (res.headersSent) {
     return next(err);
   }
@@ -41,6 +42,12 @@ export const errorHandler = (err, req, res, next) => {
 
   if (!(err instanceof ApiError) && statusCode === 500) {
     console.error(err);
+  }
+
+  try {
+    await removeUploadedFiles(req);
+  } catch (cleanupError) {
+    console.error('Could not remove files after a failed upload.', cleanupError);
   }
 
   return res.status(statusCode).json({
